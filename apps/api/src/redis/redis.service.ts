@@ -6,13 +6,23 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   private client!: Redis;
 
   onModuleInit() {
-    const host = process.env.REDIS_HOST || 'localhost';
-    const port = parseInt(process.env.REDIS_PORT || '6379', 10);
-    this.client = new Redis({
-      host,
-      port,
-      maxRetriesPerRequest: 3,
-    });
+    if (process.env.REDIS_URL) {
+      this.client = new Redis(process.env.REDIS_URL, {
+        maxRetriesPerRequest: 3,
+      });
+    } else {
+      const host = process.env.REDIS_HOST || 'localhost';
+      const port = parseInt(process.env.REDIS_PORT || '6379', 10);
+      const password = process.env.REDIS_PASSWORD || undefined;
+      const tls = process.env.REDIS_TLS === 'true' ? {} : undefined;
+      this.client = new Redis({
+        host,
+        port,
+        password,
+        tls,
+        maxRetriesPerRequest: 3,
+      });
+    }
   }
 
   onModuleDestroy() {

@@ -1,10 +1,10 @@
 services:
-  # 1. NestJS REST API Web Service
+  # 1. NestJS REST API Web Service (Render Free Instance Tier)
   - type: web
     name: jeeto-api
     env: node
     region: singapore
-    plan: starter
+    plan: free
     buildCommand: npm install && npm run prisma:generate --workspace=apps/api && npm run build --workspace=apps/api
     preDeployCommand: npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma
     startCommand: npm run start:prod --workspace=apps/api
@@ -18,27 +18,16 @@ services:
         fromDatabase:
           name: jeeto-db
           property: connectionString
-      - key: REDIS_HOST
-        fromService:
-          type: redis
-          name: jeeto-redis
-          property: host
-      - key: REDIS_PORT
-        fromService:
-          type: redis
-          name: jeeto-redis
-          property: port
+      - key: REDIS_URL
+        sync: false
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_EXPIRATION
         value: 7d
 
-# 2. Managed PostgreSQL 16 Database
+# 2. Managed PostgreSQL 16 Database (Render Free Tier - 1GB Storage)
 databases:
   - name: jeeto-db
     databaseName: jeeto_indian_db
     region: singapore
-    plan: starter
-
-# 3. Managed Redis 7 Instance
-# Note: Provisioned automatically via Render Blueprint or Dashboard
+    plan: free
