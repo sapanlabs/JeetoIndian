@@ -37,7 +37,6 @@ services:
 databases:
   - name: jeeto-db
     databaseName: jeeto_indian_db
-    user: postgres
     region: singapore
     plan: starter
 
