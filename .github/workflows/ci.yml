@@ -1,0 +1,132 @@
+name: JeetoIndian CI Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  security-scan:
+    name: Lightweight Secret & Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Scan for Hardcoded Secrets
+        run: |
+          echo "Scanning repository for accidentally committed private keys or credentials..."
+          ! grep -rniE "(BEGIN PRIVATE KEY|DATABASE_URL=.*:[^@]+@|REDIS_URL=.*:[^@]+@|SMS_GATEWAY_API_KEY=[a-zA-Z0-9_-]{10,})" . \
+            --exclude-dir={node_modules,.git,.next,build,dist} \
+            --exclude={package-lock.json,ci.yml,github-actions.md,launch-readiness-audit.md}
+
+  backend:
+    name: Backend REST API (NestJS)
+    runs-on: ubuntu-latest
+    needs: [security-scan]
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Monorepo Dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npm run prisma:generate --workspace=apps/api
+
+      - name: Type Check Backend API
+        run: npm run type-check --workspace=apps/api
+
+      - name: Run Backend Unit & Integration Tests
+        run: npm run test --workspace=apps/api
+
+      - name: Build Production Backend API
+        run: npm run build --workspace=apps/api
+
+  admin-web:
+    name: Admin Web Portal (Next.js 14)
+    runs-on: ubuntu-latest
+    needs: [security-scan]
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Monorepo Dependencies
+        run: npm ci
+
+      - name: Type Check Admin Web
+        run: npm run type-check --workspace=apps/admin-web
+
+      - name: Build Production Admin Web
+        run: npm run build --workspace=apps/admin-web
+
+  sponsor-web:
+    name: Sponsor Web Portal (Next.js 14)
+    runs-on: ubuntu-latest
+    needs: [security-scan]
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Monorepo Dependencies
+        run: npm ci
+
+      - name: Type Check Sponsor Web
+        run: npm run type-check --workspace=apps/sponsor-web
+
+      - name: Build Production Sponsor Web
+        run: npm run build --workspace=apps/sponsor-web
+
+  flutter:
+    name: Mobile Client App (Flutter)
+    runs-on: ubuntu-latest
+    needs: [security-scan]
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter Engine (3.47.1 Pin)
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          channel: 'stable'
+          cache: true
+
+      - name: Install Mobile Dependencies
+        run: flutter pub get
+        working-directory: apps/mobile
+
+      - name: Analyze Flutter Source Code
+        run: flutter analyze --no-fatal-infos
+        working-directory: apps/mobile
+
+      - name: Run Flutter Unit & Resilience Tests
+        run: flutter test
+        working-directory: apps/mobile

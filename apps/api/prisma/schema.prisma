@@ -1,0 +1,468 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum CompetitionStatus {
+  DRAFT
+  REVIEW
+  SCHEDULED
+  LIVE
+  ENDED
+  RESULT_PROCESSING
+  WINNER_VERIFICATION
+  COMPLETED
+  CANCELLED
+}
+
+enum QuestionStatus {
+  DRAFT
+  REVIEW
+  APPROVED
+  PUBLISHED
+  ARCHIVED
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum AttemptStatus {
+  IN_PROGRESS
+  SUBMITTED
+  EXPIRED
+  DISQUALIFIED
+}
+
+enum RiskLevel {
+  NORMAL
+  SUSPICIOUS
+  HIGH_RISK
+  DISQUALIFIED
+}
+
+enum PrizeType {
+  PHYSICAL
+  VOUCHER
+  COUPON
+  SPONSOR_PRODUCT
+}
+
+enum FulfillmentStatus {
+  PENDING
+  VERIFICATION_REQUIRED
+  VERIFIED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  FAILED
+  CANCELLED
+}
+
+model User {
+  id                  String       @id @default(uuid()) @db.Uuid
+  phone               String?      @unique
+  email               String?      @unique
+  passwordHash        String?      @map("password_hash")
+  status              UserStatus   @default(ACTIVE)
+  isPhoneVerified     Boolean      @default(false) @map("is_phone_verified")
+  isTwoFactorEnabled  Boolean      @default(false) @map("is_two_factor_enabled")
+  twoFactorSecret     String?      @map("two_factor_secret")
+  createdAt           DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime     @updatedAt @map("updated_at") @db.Timestamptz
+
+  profile             UserProfile?
+  roles               UserRole[]
+  attempts            QuizAttempt[]
+  winners             Winner[]
+  fraudFlags          FraudFlag[]
+  createdQuestions    Question[]   @relation("CreatorRelation")
+  reviewedQuestions   Question[]   @relation("ReviewerRelation")
+  auditLogs           AuditLog[]
+  fraudReviews        FraudReview[]
+  verifiedWinners     Winner[]     @relation("VerifierRelation")
+
+  @@map("users")
+}
+
+model UserProfile {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @unique @map("user_id") @db.Uuid
+  displayName String   @map("display_name")
+  avatarUrl   String?  @map("avatar_url")
+  state       String?
+  city        String?
+  pincode     String?
+  dateOfBirth DateTime?@map("date_of_birth") @db.Date
+  gender      String?
+  bio         String?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_profiles")
+}
+
+model Role {
+  id          String           @id @default(uuid()) @db.Uuid
+  name        String           @unique
+  description String?
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  permissions RolePermission[]
+  users       UserRole[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String           @id @default(uuid()) @db.Uuid
+  name        String           @unique
+  module      String
+  description String?
+  roles       RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String     @map("role_id") @db.Uuid
+  permissionId String     @map("permission_id") @db.Uuid
+
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model UserRole {
+  userId String @map("user_id") @db.Uuid
+  roleId String @map("role_id") @db.Uuid
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+model Sponsor {
+  id          String           @id @default(uuid()) @db.Uuid
+  name        String
+  logoUrl     String           @map("logo_url")
+  website     String?
+  description String?
+  isActive    Boolean          @default(true) @map("is_active")
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime         @updatedAt @map("updated_at") @db.Timestamptz
+
+  contacts    SponsorContact[]
+  campaigns   Campaign[]
+  prizes      Prize[]
+
+  @@map("sponsors")
+}
+
+model SponsorContact {
+  id          String   @id @default(uuid()) @db.Uuid
+  sponsorId   String   @map("sponsor_id") @db.Uuid
+  name        String
+  email       String
+  phone       String?
+  designation String?
+  isPrimary   Boolean  @default(false) @map("is_primary")
+
+  sponsor     Sponsor  @relation(fields: [sponsorId], references: [id], onDelete: Cascade)
+
+  @@map("sponsor_contacts")
+}
+
+model Campaign {
+  id           String        @id @default(uuid()) @db.Uuid
+  sponsorId    String        @map("sponsor_id") @db.Uuid
+  title        String
+  objective    String?
+  budgetAmount Decimal       @default(0.00) @map("budget_amount") @db.Decimal(12, 2)
+  startDate    DateTime      @map("start_date") @db.Timestamptz
+  endDate      DateTime      @map("end_date") @db.Timestamptz
+  isActive     Boolean       @default(true) @map("is_active")
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+
+  sponsor      Sponsor       @relation(fields: [sponsorId], references: [id], onDelete: Restrict)
+  competitions Competition[]
+
+  @@map("campaigns")
+}
+
+model Competition {
+  id                 String              @id @default(uuid()) @db.Uuid
+  title              String
+  slug               String              @unique
+  description        String?
+  bannerUrl          String?             @map("banner_url")
+  category           String
+  status             CompetitionStatus   @default(DRAFT)
+  startTime          DateTime            @map("start_time") @db.Timestamptz
+  endTime            DateTime            @map("end_time") @db.Timestamptz
+  durationSeconds    Int                 @map("duration_seconds")
+  maxAttemptsPerUser Int                 @default(1) @map("max_attempts_per_user")
+  isFreeEntry        Boolean             @default(true) @map("is_free_entry") // Mandatory rule
+  campaignId         String?             @map("campaign_id") @db.Uuid
+  createdAt          DateTime            @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime            @updatedAt @map("updated_at") @db.Timestamptz
+
+  campaign           Campaign?           @relation(fields: [campaignId], references: [id])
+  questions          CompetitionQuestion[]
+  attempts           QuizAttempt[]
+  prizes             CompetitionPrize[]
+  winners            Winner[]
+
+  @@index([status, startTime])
+  @@map("competitions")
+}
+
+model Question {
+  id             String             @id @default(uuid()) @db.Uuid
+  category       String
+  difficulty     Difficulty         @default(MEDIUM)
+  status         QuestionStatus     @default(DRAFT)
+  currentVersion Int                @default(1) @map("current_version")
+  creatorId      String             @map("creator_id") @db.Uuid
+  reviewerId     String?            @map("reviewer_id") @db.Uuid
+  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime           @updatedAt @map("updated_at") @db.Timestamptz
+
+  creator        User               @relation("CreatorRelation", fields: [creatorId], references: [id])
+  reviewer       User?              @relation("ReviewerRelation", fields: [reviewerId], references: [id])
+  versions       QuestionVersion[]
+  competitionQuestions CompetitionQuestion[]
+  quizAnswers    QuizAnswer[]
+
+  @@index([category, difficulty, status])
+  @@map("questions")
+}
+
+model QuestionVersion {
+  id              String           @id @default(uuid()) @db.Uuid
+  questionId      String           @map("question_id") @db.Uuid
+  version         Int
+  questionText    String           @map("question_text")
+  explanation     String?
+  sourceReference String?          @map("source_reference")
+  language        String           @default("en")
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz
+
+  question        Question         @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  options         QuestionOption[]
+  competitionQuestions CompetitionQuestion[]
+
+  @@unique([questionId, version])
+  @@map("question_versions")
+}
+
+model QuestionOption {
+  id                String          @id @default(uuid()) @db.Uuid
+  questionVersionId String          @map("question_version_id") @db.Uuid
+  optionKey         String          @map("option_key") @db.Char(1)
+  optionText        String          @map("option_text")
+  isCorrect         Boolean         @default(false) @map("is_correct")
+
+  questionVersion   QuestionVersion @relation(fields: [questionVersionId], references: [id], onDelete: Cascade)
+
+  @@unique([questionVersionId, optionKey])
+  @@map("question_options")
+}
+
+model CompetitionQuestion {
+  competitionId     String          @map("competition_id") @db.Uuid
+  questionId        String          @map("question_id") @db.Uuid
+  questionVersionId String          @map("question_version_id") @db.Uuid
+  sequenceOrder     Int             @map("sequence_order")
+
+  competition       Competition     @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  question          Question        @relation(fields: [questionId], references: [id])
+  questionVersion   QuestionVersion @relation(fields: [questionVersionId], references: [id])
+
+  @@id([competitionId, questionId])
+  @@map("competition_questions")
+}
+
+model QuizAttempt {
+  id             String        @id @default(uuid()) @db.Uuid
+  competitionId  String        @map("competition_id") @db.Uuid
+  userId         String        @map("user_id") @db.Uuid
+  startedAt      DateTime      @default(now()) @map("started_at") @db.Timestamptz
+  submittedAt    DateTime?     @map("submitted_at") @db.Timestamptz
+  status         AttemptStatus @default(IN_PROGRESS)
+  score          Int           @default(0)
+  totalTimeMs    Int           @default(0) @map("total_time_ms")
+  riskLevel      RiskLevel     @default(NORMAL) @map("risk_level")
+  idempotencyKey String?       @unique @map("idempotency_key")
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+
+  competition    Competition   @relation(fields: [competitionId], references: [id], onDelete: Restrict)
+  user           User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  answers        QuizAnswer[]
+  winners        Winner[]
+  fraudFlags     FraudFlag[]
+
+  @@unique([competitionId, userId])
+  @@index([competitionId, score, totalTimeMs, submittedAt])
+  @@index([userId])
+  @@map("quiz_attempts")
+}
+
+model QuizAnswer {
+  id                String      @id @default(uuid()) @db.Uuid
+  attemptId         String      @map("attempt_id") @db.Uuid
+  questionId        String      @map("question_id") @db.Uuid
+  selectedOptionKey String?     @map("selected_option_key") @db.Char(1)
+  isCorrect         Boolean     @default(false) @map("is_correct")
+  timeTakenMs       Int         @default(0) @map("time_taken_ms")
+  answeredAt        DateTime    @default(now()) @map("answered_at") @db.Timestamptz
+
+  attempt           QuizAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question          Question    @relation(fields: [questionId], references: [id])
+
+  @@unique([attemptId, questionId])
+  @@map("quiz_answers")
+}
+
+model Prize {
+  id                String             @id @default(uuid()) @db.Uuid
+  sponsorId         String?            @map("sponsor_id") @db.Uuid
+  title             String
+  description       String?
+  imageUrl          String             @map("image_url")
+  prizeType         PrizeType          @map("prize_type")
+  estimatedValueInr Decimal            @default(0.00) @map("estimated_value_inr") @db.Decimal(10, 2)
+  termsConditions   String?            @map("terms_conditions")
+  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz
+
+  sponsor           Sponsor?           @relation(fields: [sponsorId], references: [id])
+  competitionPrizes CompetitionPrize[]
+  winners           Winner[]
+  fulfillments      PrizeFulfillment[]
+
+  @@map("prizes")
+}
+
+model CompetitionPrize {
+  id            String      @id @default(uuid()) @db.Uuid
+  competitionId String      @map("competition_id") @db.Uuid
+  prizeId       String      @map("prize_id") @db.Uuid
+  rankStart     Int         @map("rank_start")
+  rankEnd       Int         @map("rank_end")
+  quantity      Int         @default(1)
+
+  competition   Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  prize         Prize       @relation(fields: [prizeId], references: [id], onDelete: Restrict)
+
+  @@map("competition_prizes")
+}
+
+model Winner {
+  id            String            @id @default(uuid()) @db.Uuid
+  competitionId String            @map("competition_id") @db.Uuid
+  userId        String            @map("user_id") @db.Uuid
+  attemptId     String            @map("attempt_id") @db.Uuid
+  rank          Int
+  score         Int
+  totalTimeMs   Int               @map("total_time_ms")
+  prizeId       String?           @map("prize_id") @db.Uuid
+  isVerified    Boolean           @default(false) @map("is_verified")
+  verifiedBy    String?           @map("verified_by") @db.Uuid
+  verifiedAt    DateTime?         @map("verified_at") @db.Timestamptz
+  createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz
+
+  competition   Competition       @relation(fields: [competitionId], references: [id])
+  user          User              @relation(fields: [userId], references: [id])
+  attempt       QuizAttempt       @relation(fields: [attemptId], references: [id])
+  prize         Prize?            @relation(fields: [prizeId], references: [id])
+  verifier      User?             @relation("VerifierRelation", fields: [verifiedBy], references: [id])
+  fulfillment   PrizeFulfillment?
+
+  @@unique([competitionId, rank])
+  @@unique([competitionId, userId])
+  @@map("winners")
+}
+
+model PrizeFulfillment {
+  id              String            @id @default(uuid()) @db.Uuid
+  winnerId        String            @unique @map("winner_id") @db.Uuid
+  prizeId         String            @map("prize_id") @db.Uuid
+  status          FulfillmentStatus @default(PENDING)
+  trackingNumber  String?           @map("tracking_number")
+  courierPartner  String?           @map("courier_partner")
+  voucherCode     String?           @map("voucher_code")
+  shippingAddress String?           @map("shipping_address")
+  notes           String?
+  updatedAt       DateTime          @updatedAt @map("updated_at") @db.Timestamptz
+
+  winner          Winner            @relation(fields: [winnerId], references: [id])
+  prize           Prize             @relation(fields: [prizeId], references: [id])
+
+  @@map("prize_fulfillments")
+}
+
+model FraudFlag {
+  id            String        @id @default(uuid()) @db.Uuid
+  attemptId     String        @map("attempt_id") @db.Uuid
+  userId        String        @map("user_id") @db.Uuid
+  ruleTriggered String        @map("rule_triggered")
+  riskScore     Int           @map("risk_score")
+  details       Json?
+  createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamptz
+
+  attempt       QuizAttempt   @relation(fields: [attemptId], references: [id])
+  user          User          @relation(fields: [userId], references: [id])
+  reviews       FraudReview[]
+
+  @@map("fraud_flags")
+}
+
+model FraudReview {
+  id          String   @id @default(uuid()) @db.Uuid
+  flagId      String   @map("flag_id") @db.Uuid
+  reviewedBy  String   @map("reviewed_by") @db.Uuid
+  actionTaken String   @map("action_taken")
+  notes       String?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  flag        FraudFlag @relation(fields: [flagId], references: [id])
+  reviewer    User      @relation(fields: [reviewedBy], references: [id])
+
+  @@map("fraud_reviews")
+}
+
+model AuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  actorId     String   @map("actor_id") @db.Uuid
+  role        String
+  action      String
+  resource    String
+  resourceId  String?  @map("resource_id")
+  ipAddress   String?  @map("ip_address")
+  beforeState Json?    @map("before_state")
+  afterState  Json?    @map("after_state")
+  timestamp   DateTime @default(now()) @db.Timestamptz
+
+  actor       User     @relation(fields: [actorId], references: [id])
+
+  @@map("audit_logs")
+}
