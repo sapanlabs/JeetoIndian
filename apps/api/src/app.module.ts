@@ -17,6 +17,7 @@ import { WinnerModule } from './modules/winner/winner.module';
 import { FraudModule } from './modules/fraud/fraud.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { AdModule } from './modules/ad/ad.module';
+import { AppController } from './app.controller';
 import { QueueModule } from './modules/queue/queue.module';
 
 @Module({
@@ -41,5 +42,6 @@ import { QueueModule } from './modules/queue/queue.module';
     AdminModule,
     AdModule,
   ],
+  controllers: [AppController],
 })
 export class AppModule {}

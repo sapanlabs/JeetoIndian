@@ -43,11 +43,11 @@ flutter run
 ```env
 PORT=3000
 NODE_ENV=development
-DATABASE_URL=postgresql://postgres:postgrespassword@localhost:5432/jeeto_indian_db?schema=public
+DATABASE_URL=<DATABASE_URL>
 REDIS_HOST=localhost
 REDIS_PORT=6379
-JWT_SECRET=jeeto_indian_super_secret_jwt_key_2026
-SMS_GATEWAY_API_KEY=dev_dummy_key
+JWT_SECRET=<JWT_SECRET>
+SMS_GATEWAY_API_KEY=<SMS_GATEWAY_API_KEY>
 SMS_GATEWAY_SENDER_ID=JEETO
 ```
 
