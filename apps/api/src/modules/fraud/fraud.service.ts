@@ -5,9 +5,9 @@ import { PrismaService } from '../../prisma/prisma.service';
 export class FraudService {
   constructor(private prisma: PrismaService) {}
 
-  async listFlags(status?: string) {
+  async listFlags(ruleTriggered?: string) {
     return this.prisma.fraudFlag.findMany({
-      where: status ? { status: status as any } : undefined,
+      where: ruleTriggered ? { ruleTriggered } : undefined,
       include: {
         attempt: { include: { competition: true } },
         user: { include: { profile: true } },

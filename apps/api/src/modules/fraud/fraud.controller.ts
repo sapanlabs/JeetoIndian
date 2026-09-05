@@ -1,5 +1,5 @@
-import { Controller, Get, Post, Body, Param, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { FraudService } from './fraud.service';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -17,8 +17,10 @@ export class FraudController {
   @Get('flags')
   @Roles(RoleName.SUPER_ADMIN, RoleName.ADMIN, RoleName.MODERATOR)
   @ApiOperation({ summary: 'List flagged suspicious quiz attempts' })
-  async listFlags() {
-    return this.fraudService.listFlags();
+  @ApiQuery({ name: 'status', required: false, description: 'Filter flags by status or rule' })
+  @ApiQuery({ name: 'ruleTriggered', required: false, description: 'Filter flags by rule triggered' })
+  async listFlags(@Query('status') status?: string, @Query('ruleTriggered') ruleTriggered?: string) {
+    return this.fraudService.listFlags(status || ruleTriggered);
   }
 
   @Post('flags/:id/review')
