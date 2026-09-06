@@ -6,7 +6,6 @@ services:
     region: singapore
     plan: free
     buildCommand: npm install && npm run prisma:generate --workspace=apps/api && npm run build --workspace=apps/api
-    preDeployCommand: npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma
     startCommand: npm run start:prod --workspace=apps/api
     healthCheckPath: /health
     envVars:
