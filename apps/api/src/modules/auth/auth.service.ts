@@ -5,6 +5,7 @@ import { RedisService } from '../../redis/redis.service';
 import { APP_CONFIG } from '@jeeto/config';
 import { SendOtpDto, VerifyOtpDto, AdminLoginDto, VerifyTwoFactorDto } from '@jeeto/validation';
 import * as bcrypt from 'bcryptjs';
+import { authenticator } from 'otplib';
 import { IOtpProvider, DevelopmentOtpProvider, ProductionSmsProvider } from './otp-provider.interface';
 
 @Injectable()
@@ -182,9 +183,27 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
-    // Simple 2FA code check (default '123456' for dev if secret not configured)
-    if (dto.totpCode !== '123456') {
-      throw new UnauthorizedException('Invalid 2FA authentication code');
+    // 2FA Verification Logic
+    if (user.twoFactorSecret) {
+      // Validate TOTP code using configured TOTP secret via otplib
+      const isValid = authenticator.verify({
+        token: dto.totpCode,
+        secret: user.twoFactorSecret,
+      });
+      if (!isValid) {
+        throw new UnauthorizedException('Invalid 2FA authentication code');
+      }
+    } else {
+      // If no TOTP secret is configured:
+      // In production mode, NEVER accept a hardcoded/default code.
+      if (process.env.NODE_ENV === 'production') {
+        throw new UnauthorizedException('2FA is not configured for this account');
+      }
+
+      // In development/test mode ONLY: allow test code if secret is missing
+      if (dto.totpCode !== '123456') {
+        throw new UnauthorizedException('Invalid 2FA authentication code');
+      }
     }
 
     const roleNames = user.roles.map((r) => r.role.name);

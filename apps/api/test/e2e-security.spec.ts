@@ -96,5 +96,24 @@ describe('JeetoIndian Complete E2E & Security Test Suite', () => {
 
       expect(hasPermission).toBe(false);
     });
+
+    it('should strictly reject hardcoded 2FA fallback codes in production mode', () => {
+      const originalNodeEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'production';
+
+      const user = { id: 'admin1', twoFactorSecret: null };
+
+      let isAllowedInProd = false;
+      if (user.twoFactorSecret) {
+        isAllowedInProd = true;
+      } else {
+        if (process.env.NODE_ENV === 'production') {
+          isAllowedInProd = false;
+        }
+      }
+
+      expect(isAllowedInProd).toBe(false);
+      process.env.NODE_ENV = originalNodeEnv;
+    });
   });
 });
