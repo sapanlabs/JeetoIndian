@@ -1,0 +1,109 @@
+-- CreateEnum
+CREATE TYPE "RiskLevel" AS ENUM ('NORMAL', 'SUSPICIOUS', 'HIGH_RISK', 'DISQUALIFIED');
+
+-- AlterEnum
+ALTER TYPE "CompetitionStatus" ADD VALUE IF NOT EXISTS 'RESULT_PROCESSING';
+ALTER TYPE "CompetitionStatus" ADD VALUE IF NOT EXISTS 'WINNER_VERIFICATION';
+ALTER TYPE "CompetitionStatus" ADD VALUE IF NOT EXISTS 'COMPLETED';
+
+-- AlterTable users
+ALTER TABLE "users" 
+  ADD COLUMN IF NOT EXISTS "is_two_factor_enabled" BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS "two_factor_secret" TEXT;
+
+-- AlterTable user_profiles
+ALTER TABLE "user_profiles" 
+  ADD COLUMN IF NOT EXISTS "date_of_birth" DATE,
+  ADD COLUMN IF NOT EXISTS "gender" TEXT,
+  ADD COLUMN IF NOT EXISTS "bio" TEXT;
+
+-- AlterTable permissions
+ALTER TABLE "permissions" 
+  ADD COLUMN IF NOT EXISTS "module" TEXT NOT NULL DEFAULT 'general';
+
+-- AlterTable sponsors
+ALTER TABLE "sponsors" 
+  ADD COLUMN IF NOT EXISTS "name" TEXT,
+  ADD COLUMN IF NOT EXISTS "description" TEXT,
+  ADD COLUMN IF NOT EXISTS "is_active" BOOLEAN NOT NULL DEFAULT true,
+  ADD COLUMN IF NOT EXISTS "website" TEXT;
+
+-- AlterTable sponsor_contacts
+ALTER TABLE "sponsor_contacts" 
+  ADD COLUMN IF NOT EXISTS "is_primary" BOOLEAN NOT NULL DEFAULT false;
+
+-- AlterTable campaigns
+ALTER TABLE "campaigns" 
+  ADD COLUMN IF NOT EXISTS "objective" TEXT,
+  ADD COLUMN IF NOT EXISTS "budget_amount" DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  ADD COLUMN IF NOT EXISTS "is_active" BOOLEAN NOT NULL DEFAULT true,
+  ADD COLUMN IF NOT EXISTS "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  ADD COLUMN IF NOT EXISTS "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+-- AlterTable competitions
+ALTER TABLE "competitions" 
+  ADD COLUMN IF NOT EXISTS "banner_url" TEXT,
+  ADD COLUMN IF NOT EXISTS "category" TEXT NOT NULL DEFAULT 'GENERAL_KNOWLEDGE',
+  ADD COLUMN IF NOT EXISTS "duration_seconds" INTEGER NOT NULL DEFAULT 600,
+  ADD COLUMN IF NOT EXISTS "max_attempts_per_user" INTEGER NOT NULL DEFAULT 1;
+
+-- AlterTable questions
+ALTER TABLE "questions" 
+  ADD COLUMN IF NOT EXISTS "current_version" INTEGER NOT NULL DEFAULT 1;
+
+-- AlterTable question_versions
+ALTER TABLE "question_versions" 
+  ADD COLUMN IF NOT EXISTS "question_text" TEXT,
+  ADD COLUMN IF NOT EXISTS "source_reference" TEXT,
+  ADD COLUMN IF NOT EXISTS "language" TEXT NOT NULL DEFAULT 'en',
+  ADD COLUMN IF NOT EXISTS "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+-- AlterTable competition_questions
+ALTER TABLE "competition_questions" 
+  ADD COLUMN IF NOT EXISTS "sequence_order" INTEGER NOT NULL DEFAULT 1;
+
+-- AlterTable quiz_attempts
+ALTER TABLE "quiz_attempts" 
+  ADD COLUMN IF NOT EXISTS "risk_level" "RiskLevel" NOT NULL DEFAULT 'NORMAL',
+  ADD COLUMN IF NOT EXISTS "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  ADD COLUMN IF NOT EXISTS "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+-- AlterTable prizes
+ALTER TABLE "prizes" 
+  ADD COLUMN IF NOT EXISTS "estimated_value_inr" DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  ADD COLUMN IF NOT EXISTS "terms_conditions" TEXT,
+  ADD COLUMN IF NOT EXISTS "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+-- AlterTable competition_prizes
+ALTER TABLE "competition_prizes" 
+  ADD COLUMN IF NOT EXISTS "rank_start" INTEGER NOT NULL DEFAULT 1,
+  ADD COLUMN IF NOT EXISTS "rank_end" INTEGER NOT NULL DEFAULT 1,
+  ADD COLUMN IF NOT EXISTS "quantity" INTEGER NOT NULL DEFAULT 1;
+
+-- AlterTable winners
+ALTER TABLE "winners" 
+  ADD COLUMN IF NOT EXISTS "is_verified" BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+-- AlterTable prize_fulfillments
+ALTER TABLE "prize_fulfillments" 
+  ADD COLUMN IF NOT EXISTS "status" TEXT NOT NULL DEFAULT 'PENDING',
+  ADD COLUMN IF NOT EXISTS "courier_partner" TEXT,
+  ADD COLUMN IF NOT EXISTS "voucher_code" TEXT,
+  ADD COLUMN IF NOT EXISTS "shipping_address" TEXT,
+  ADD COLUMN IF NOT EXISTS "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+-- AlterTable fraud_flags
+ALTER TABLE "fraud_flags" 
+  ADD COLUMN IF NOT EXISTS "rule_triggered" TEXT NOT NULL DEFAULT 'UNKNOWN',
+  ADD COLUMN IF NOT EXISTS "risk_score" INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS "details" JSONB;
+
+-- AlterTable audit_logs
+ALTER TABLE "audit_logs" 
+  ADD COLUMN IF NOT EXISTS "role" TEXT NOT NULL DEFAULT 'USER',
+  ADD COLUMN IF NOT EXISTS "resource_id" TEXT,
+  ADD COLUMN IF NOT EXISTS "ip_address" TEXT,
+  ADD COLUMN IF NOT EXISTS "before_state" JSONB,
+  ADD COLUMN IF NOT EXISTS "after_state" JSONB,
+  ADD COLUMN IF NOT EXISTS "timestamp" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
